@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#run this script for all sample
+#run this script for all samples
 
 sample_name=$1 #e.g.AZ107
 
