@@ -1,0 +1,90 @@
+---
+title: "ancient_microbiome_denovo_figures"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+Load packages
+```{r}
+install.packages("factoextra")
+library(ggplot2)
+library(factoextra)
+library(devtools)
+install_github('sinhrks/ggfortify')
+library(ggfortify)
+library(RColorBrewer)
+library(viridis)
+
+library("phyloseq"); packageVersion("phyloseq")
+library("ggplot2"); packageVersion("ggplot2")
+
+require(dplyr); require(ggplot2); require(pheatmap); require(stringr); require(tidyr); require(microbiomics)
+
+library(vegan)
+library(dplyr)
+library(scales)
+library(grid)
+library(reshape2)
+library(phyloseq)
+```
+
+
+Figure 1d - Metaphlan for coprolites, soil samples, and coproid sediment samples
+```{r}
+for_pca2 <- read.table("/Users/marshacw/Downloads/ancient_soil_metaphlan_20200526.txt", header=TRUE, row.names=1)
+for_pca2 <- for_pca2*1000000000000
+
+md= read.table("/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/filtered_full/Figure 1/metadata_ancient_mexican_fiji_obregon_qinj_lij_hmpcmd_pasolli_rampelli_soil.txt",sep="\t",header=T)
+
+md<-md[md$SampleType=="Paleofeces" | md$SampleType=="Soil"| md$SampleType=="CoproID_sediment" | md$SampleType=="Sediment",]
+
+md <- md[md$SampleID %in% colnames(for_pca2) , ]
+for_pca2 <- for_pca2[, colnames(for_pca2) %in% md$SampleID]
+for_pca2 <- for_pca2[, match(md$SampleID, colnames(for_pca2))]
+all(colnames(for_pca2) == md$SampleID) # check that otu table and mapping file has same order
+
+# plot tra
+tra <- as.data.frame(t(for_pca2))
+tra <- tra+1
+tra <- log2(tra)
+scaled_data <- as.data.frame(t(scale(t(tra))))
+all(rownames(scaled_data) == md$SampleID) # check that otu table and mapping file has same order
+scaled_data$SampleType <- md$SampleType
+scaled_data$SampleName <- md$SampleName
+scaled_data$Sample_Type <- md$Sample_Type
+scaled_data$size <- md$size
+scaled_data[is.na(scaled_data)] <- 0
+
+
+scaled_data$Sample_Type <- factor(scaled_data$Sample_Type, levels = c("Boomerang paleofeces", "Cave 2 paleofeces", "Zape paleofeces", "Boomerang soil", "Archaeo sediment"))
+
+tiff(file="/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/filtered_full/Figure 1/ancient_sediment_pca_20200526_v2.tiff", res=100, pointsize=3, width=1200, height=650)
+autoplot(prcomp(scaled_data[,1:955]), data=scaled_data, colour='Sample_Type', alpha=0.5, size=5)+ geom_point(alpha=0.5, size=5, aes(color=Sample_Type))+
+  guides(size=FALSE)+
+  theme_light()+ labs(color = "Sample type")+theme(axis.title.x = element_text(size=21), axis.title.y=element_text(size=21), axis.text=element_text(size=18), legend.text=element_text(size=21), legend.title = element_text(size=21), legend.key.size = unit(7, 'lines'), panel.grid.major = element_blank(),
+panel.grid.minor = element_blank()) 
+dev.off()
+```
