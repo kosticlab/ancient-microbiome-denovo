@@ -3,37 +3,14 @@ title: "ancient_microbiome_denovo_figures"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
-```
-
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
-
-Load packages
+### Load packages
 ```{r}
 install.packages("factoextra")
+install_github('sinhrks/ggfortify')
+
 library(ggplot2)
 library(factoextra)
 library(devtools)
-install_github('sinhrks/ggfortify')
 library(ggfortify)
 library(RColorBrewer)
 library(viridis)
@@ -49,10 +26,17 @@ library(scales)
 library(grid)
 library(reshape2)
 library(phyloseq)
+library(data.table)
+library(wesanderson)
+library(cowplot)
+library(colorRamps)
+
+
+
 ```
 
 
-Figure 1d - Metaphlan for coprolites, soil samples, and coproid sediment samples
+### Figure 1d - Metaphlan for coprolites, soil samples, and coproid sediment samples
 ```{r}
 for_pca2 <- read.table("/Users/marshacw/Downloads/ancient_soil_metaphlan_20200526.txt", header=TRUE, row.names=1)
 for_pca2 <- for_pca2*1000000000000
@@ -86,5 +70,184 @@ autoplot(prcomp(scaled_data[,1:955]), data=scaled_data, colour='Sample_Type', al
   guides(size=FALSE)+
   theme_light()+ labs(color = "Sample type")+theme(axis.title.x = element_text(size=21), axis.title.y=element_text(size=21), axis.text=element_text(size=18), legend.text=element_text(size=21), legend.title = element_text(size=21), legend.key.size = unit(7, 'lines'), panel.grid.major = element_blank(),
 panel.grid.minor = element_blank()) 
+dev.off()
+```
+
+
+## Figure 2a - Phylum-level plot differences between paleofeces, urban, and non-urban samples
+```{r}
+all_samples_family <- read.table("/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/filtered_full/metaphlan_phylum_20200511.txt", header=TRUE, row.names=1)
+
+# Select only the significant families
+sig_fam <- read.table("/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/filtered_full/wilcox_metaphlan_phylum_copro_vs_urban_significant_20200511.txt", header=TRUE)
+all_samples_family <- all_samples_family[rownames(all_samples_family) %in% sig_fam$family,]
+all_samples_family <- all_samples_family[match(sig_fam$family, rownames(all_samples_family)),]
+all(rownames(all_samples_family) == sig_fam$family) # check that otu table and mapping file has same order
+
+# Metadata
+md= read.table("/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/filtered_full/Figure 2/metadata_ancient_mexican_fiji_obregon_qinj_lij_hmpcmd_pasolli_rampelli.txt",sep="\t",header=T)
+md<-md[md$SampleType!="Soil",]
+
+md <- md[md$SampleID %in% colnames(all_samples_family) , ]
+all_samples_family <- all_samples_family[, colnames(all_samples_family) %in% md$SampleID]
+all_samples_family <- all_samples_family[, match(md$SampleID, colnames(all_samples_family))]
+all(colnames(all_samples_family) == md$SampleID) # check that otu table and mapping file has same order
+
+all_samples_family <- setDT(all_samples_family, keep.rownames=TRUE)
+all_samples_family_long <- gather(all_samples_family, sampleID, relab, -rn)
+all_samples_family_long$SampleType <- md$SampleName[match(all_samples_family_long$sampleID,md$SampleID)]
+
+all_samples_family_long$SampleType <- factor(all_samples_family_long$SampleType, levels = c("Paleofeces","Non-industrial", "Industrial"))
+all_samples_family_long$rn <- factor(all_samples_family_long$rn, levels=c("Firmicutes","Proteobacteria","Spirochaetes","Verrucomicrobia", "Bacteroidetes"))
+
+### Generate Figure
+tiff(file="/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/filtered_full/Figure 2/Figure2a_phylum_20200511_3.tiff", res=300, pointsize=0.5, width=2200, height=500)
+ggplot(all_samples_family_long, aes(x=SampleType, y=relab, fill=SampleType))+
+  geom_boxplot(outlier.shape=NA, lwd=0.25) +
+  scale_fill_manual(values = c("#ff7a7a", "#8860b3", "#62a9d9"))+
+  geom_point(color="black", size = 0.6, shape=21, position = position_jitterdodge(), stroke=0.1, alpha=0.75)+
+  labs(fill="Sample type", y="Relative abundance") +
+  theme_classic() +
+  theme(legend.key.size = unit(0.5, "cm"), axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(), strip.text.x = element_text(size = 8), axis.text.y = element_text(size = 6), axis.title.y=element_text(size=10), legend.text=element_text(size=10), legend.title=element_text(size=10), axis.line = element_line(size = 0.2), strip.background = element_blank(), axis.ticks = element_line(size=0.1)) +
+  facet_wrap(~rn, scales="free_y", nrow=1)
+dev.off() 
+  
+```
+
+
+## Figure 2b - Boxplots for family-level differences coprolites vs. traditional and urban samples for VANISH taxa without QinJ
+```{r}
+all_samples_family <- read.table("/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/filtered_full/metaphlan_family_20200716_without_qinj.txt", header=TRUE, row.names=1)
+
+# Select only the significant family
+sig_fam <- read.table("/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/filtered_full/wilcox_metaphlan_family_VANISH.txt", header=TRUE)
+sig_fam <- as.data.frame(sig_fam[sig_fam$family %in% rownames(all_samples_family) , ])
+all_samples_family <- all_samples_family[rownames(all_samples_family) %in% sig_fam$family,]
+all_samples_family <- all_samples_family[match(sig_fam$family, rownames(all_samples_family)),]
+all(rownames(all_samples_family) == sig_fam$family) # check that otu table and mapping file has same order
+
+# Metadata
+md= read.table("/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/filtered_full/Figure 2/metadata_ancient_mexican_fiji_obregon_qinj_lij_hmpcmd_pasolli_rampelli.txt",sep="\t",header=T)
+
+md<-md[md$SampleType!="HMP",]
+md<-md[md$SampleType!="Soil",]
+
+md <- md[md$SampleID %in% colnames(all_samples_family) , ]
+all_samples_family <- all_samples_family[, colnames(all_samples_family) %in% md$SampleID]
+all_samples_family <- all_samples_family[, match(md$SampleID, colnames(all_samples_family))]
+all(colnames(all_samples_family) == md$SampleID) # check that otu table and mapping file has same order
+
+all_samples_family <- setDT(all_samples_family, keep.rownames=TRUE)
+all_samples_family_long <- gather(all_samples_family, sampleID, relab, -rn)
+all_samples_family_long$SampleType <- md$SampleName[match(all_samples_family_long$sampleID,md$SampleID)]
+
+all_samples_family_long$SampleType <- factor(all_samples_family_long$SampleType, levels = c("Paleofeces","Non-industrial", "Industrial"))
+
+all_samples_family_long$rn <- factor(all_samples_family_long$rn, levels = c("Spirochaetaceae","Paraprevotellaceae", "Prevotellaceae", "Succinivibrionaceae", "Bacteroidaceae", "Verrucomicrobiaceae"))
+
+### Generate plot
+tiff(file="/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/filtered_full/Figure 2/Figure2a_family_without_qinj_20200716.tiff", res=300, pointsize=0.5, width=2250, height=500)
+ggplot(all_samples_family_long, aes(x=SampleType, y=relab, fill=SampleType))+
+  geom_boxplot(outlier.shape=NA, lwd=0.25) +
+  scale_fill_manual(values = c("#ff7a7a", "#8860b3", "#62a9d9"))+
+  geom_point(color="black", size = 0.6, shape=21, position = position_jitterdodge(), stroke=0.1, alpha=0.75)+
+  labs(fill="Sample type", y="Relative abundance") +
+  theme_classic() +
+  theme(legend.key.size = unit(0.5, "cm"), axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(), strip.text.x = element_text(size = 7), axis.text.y = element_text(size = 6), axis.title.y=element_text(size=8), legend.text=element_text(size=8), legend.title=element_text(size=8), axis.line = element_line(size = 0.2), strip.background = element_blank(), axis.ticks = element_line(size=0.1)) +
+  facet_wrap(~rn, scales="free_y", nrow=1)
+dev.off()
+
+```
+
+
+## Figure 2c - PCA plot for MetaPhlAn2 species results
+```{r}
+ra <- read.table("/Users/marshacw/Downloads/ancient_hmp_mexican_fijian_obregon_qin_li_hmpcmd_fijicmd_pasolli_rampelli_species_20200506.txt", header=TRUE, row.names=1) # without soil samples
+
+md= read.table("/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/filtered_full/Figure 2/metadata_ancient_mexican_fiji_obregon_qinj_lij_hmpcmd_pasolli_rampelli.txt",sep="\t",header=T)
+
+md<-md[md$SampleType!="HMP",]
+md<-md[md$SampleType!="QinJ_2012_China",]
+
+
+md <- md[md$SampleID %in% colnames(ra) , ]
+ra <- ra[, colnames(ra) %in% md$SampleID]
+ra <- ra[, match(md$SampleID, colnames(ra))]
+
+all(colnames(ra) == md$SampleID) # check that otu table and mapping file has same order
+
+# plot tra
+tra <- as.data.frame(t(ra))
+tra <- tra+1
+tra <- log2(tra)
+# Normalize by samples
+scaled_data <- as.data.frame(t(scale(t(tra))))
+all(rownames(scaled_data) == md$SampleID) # check that otu table and mapping file has same order
+scaled_data$SampleType <- md$SampleType
+scaled_data$SampleName <- md$SampleName
+scaled_data$size <- md$size
+#scaled_data$SampleID <- md$SampleID
+
+scaled_data$SampleType <- factor(scaled_data$SampleType, levels = c("Paleofeces","Mexico","BritoIL_2016_Fiji","PasolliE_2018_Madagascar", "RampelliS_2015_Tanzania", "Obregon_TitoAJ_2015_Peru", "Obregon_TitoAJ_2015_USA","LiJ_2014_Denmark", "LiJ_2014_Spain" ,"HMP_USA"))
+
+scaled_data$SampleName <- factor(scaled_data$SampleName, levels = c("Paleofeces","Non-industrial", "Industrial"))
+
+tiff(file="/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/filtered_full/Figure 2/Fig2b_ancient_filtered_full_PCA_without_QinJ_20200717.tiff", res=100, pointsize=3, width=1500, height=700)
+autoplot(prcomp(scaled_data[,1:1199]), data=scaled_data, colour='SampleType', shape= 'SampleName', alpha=0.75, size="size")+ geom_point(alpha=0.75, size=3, aes(color=SampleType, shape= SampleName))+  
+  scale_shape_manual(values=c(16, 3, 17,5))+
+  #scale_color_brewer(palette="Paired")+
+  scale_color_manual(name="Sample", values=c("#FF6666","#FF9900","#99929c", "darkblue", "magenta", "#40cfcf", "#3399FF", "#c28904", "tomato3", "#00BA38","#3399FF","red"))+
+  #scale_size_manual(values=c(50,2,2))+
+  guides(size=FALSE)+
+  theme_classic()+ labs(color = "Sample", shape="Sample type")+theme(axis.title.x = element_text(size=18), axis.title.y=element_text(size=18), axis.text=element_text(size=15), legend.text=element_text(size=18), legend.title = element_text(size=18), legend.key.size = unit(7, 'lines')) 
+dev.off()
+```
+
+
+## Figure 2d - Species-level heatmap (showing only significant species according to Fisher results)
+```{r}
+all_samples_family <- read.table("/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/filtered_full/metaphlan_species_binary_space_without_qinj_20200717.txt", header=TRUE, row.names=1, sep="\t")
+
+sig_fam <- read.table("/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/filtered_full/wilcox_metaphlan_species_vanish_family_copro_vs_traditional_urban_significant_soilremoved_space_without_qinj_20200717.txt", header=TRUE, sep="\t")
+
+all_samples_family <- all_samples_family[rownames(all_samples_family) %in% sig_fam$species,]
+all_samples_family <- all_samples_family[match(sig_fam$species, rownames(all_samples_family)),]
+all(rownames(all_samples_family) == sig_fam$species) # check that otu table and mapping file has same order
+
+# Metadata
+md= read.table("/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/filtered_full/Figure 2/metadata_ancient_mexican_fiji_obregon_qinj_lij_hmpcmd_pasolli_rampelli.txt",sep="\t",header=T)
+
+md<-md[md$SampleType!="HMP",]
+md<-md[md$SampleType!="Soil",]
+
+md <- md[md$SampleID %in% colnames(all_samples_family) , ]
+all_samples_family <- all_samples_family[, colnames(all_samples_family) %in% md$SampleID]
+all_samples_family <- all_samples_family[, match(md$SampleID, colnames(all_samples_family))]
+all(colnames(all_samples_family) == md$SampleID) # check that otu table and mapping file has same order
+
+md$SampleType <- factor(md$SampleType, levels = c("Paleofeces","Mexico","BritoIL_2016_Fiji","PasolliE_2018_Madagascar", "RampelliS_2015_Tanzania", "Obregon_TitoAJ_2015_Peru", "Obregon_TitoAJ_2015_USA","LiJ_2014_Denmark", "LiJ_2014_Spain" ,"HMP_USA"))
+
+# Make a new data frame for annotation_row and annotation_col
+annotationrow <- data.frame(enriched_in=sig_fam[,2])
+row.names(annotationrow) <- sig_fam[,1]
+
+annotationcol <- data.frame(SampleType=md[,2])
+row.names(annotationcol) <- md[,1]
+
+annotationcol$SampleType <- factor(annotationcol$SampleType, levels = c("Paleofeces","Mexico","BritoIL_2016_Fiji","PasolliE_2018_Madagascar", "RampelliS_2015_Tanzania", "Obregon_TitoAJ_2015_Peru", "Obregon_TitoAJ_2015_USA","LiJ_2014_Denmark", "LiJ_2014_Spain" ,"HMP_USA"))
+
+newCols <- colorRampPalette(grDevices::rainbow(length(unique(annotationrow$enriched_in))))
+mycolors <- newCols(length(unique(annotationrow$enriched_in)))
+names(mycolors) <- unique(annotationrow$enriched_in)
+mycolors <- list(annotation = mycolors)
+
+
+# Make heatmap
+tiff(file="/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/filtered_full/Figure 2/Fig2a_heatmap_species_copro_vs_traditional_urban_soilremoved_vanish_family_20200522.tiff", res=150, pointsize=10, width=2700, height=2500)
+pheatmap(all_samples_family, annotation_col=annotationcol, annotation_row=annotationrow, fontsize=12, fontsize_row=12, cluster_cols = F, cluster_rows = F, show_colnames=F, annotation_legend=T, color = c("#d9d9d9", "#a8327d"), breaks = c(0, 0.5, 1), annotation_colors = mycolors)
 dev.off()
 ```
