@@ -30,9 +30,10 @@ library(data.table)
 library(wesanderson)
 library(cowplot)
 library(colorRamps)
-
-
-
+library(lattice)
+library(ggpubr)
+library(ggforce)
+library(ggrepel)
 ```
 
 
@@ -245,9 +246,340 @@ mycolors <- newCols(length(unique(annotationrow$enriched_in)))
 names(mycolors) <- unique(annotationrow$enriched_in)
 mycolors <- list(annotation = mycolors)
 
-
 # Make heatmap
 tiff(file="/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/filtered_full/Figure 2/Fig2a_heatmap_species_copro_vs_traditional_urban_soilremoved_vanish_family_20200522.tiff", res=150, pointsize=10, width=2700, height=2500)
 pheatmap(all_samples_family, annotation_col=annotationcol, annotation_row=annotationrow, fontsize=12, fontsize_row=12, cluster_cols = F, cluster_rows = F, show_colnames=F, annotation_legend=T, color = c("#d9d9d9", "#a8327d"), breaks = c(0, 0.5, 1), annotation_colors = mycolors)
+dev.off()
+```
+
+
+## Figure 3b-d - Plot completeness, contamination, number of contigs, and contigs N50 of the bins
+```{r}
+## Figure 3b - completeness and contamination of filtered bins with final samples 
+figure1a <- read.table("/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/filtered_full/metadata_filtered_bins.txt", sep="\t", header=TRUE,stringsAsFactors = F)
+
+tiff(file="/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/filtered_full/Figure 3/Figure3b_completeness_contamination.tiff", res=300, pointsize=0.5, width=2000, height=1200)
+ggplot(data=figure1a, aes(x=figure1a$Completeness, y=figure1a$Contamination)) + 
+  geom_point(aes(colour = figure1a$Quality)) +
+  scale_color_discrete(breaks=c("High","Medium","Low")) +
+  scale_color_manual(values=c("#33CC99", "#D1AF6F", "#CC99CC"), guide=FALSE) +
+  labs(color="Quality", y="Contamination (%)", x="Completeness (%)") +
+  ylim(c(0,7.5)) + 
+  theme_classic() +
+  theme(text = element_text(size=14), legend.key.size = unit(0.5, "cm"))
+dev.off()
+
+
+## Figure 3c - box and whisker plot for number of contigs
+p <- ggplot(figure1a, aes(figure1a$Quality, log2(figure1a$num_contigs), colour=figure1a$Quality))
+tiff(file="/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/filtered_full/Figure 3/Figure3c_num_contigs.tiff", res=300, pointsize=0.5, width=1000, height=1000)
+p + geom_boxplot() + 
+  geom_point(size = 1, shape = 20, position = position_jitterdodge()) +
+  labs(y="Number of contigs (log2)") +
+  scale_color_manual(values=c("#D1AF6F", "#CC99CC", "#33CC99"), guide=FALSE) +
+  scale_x_discrete(labels=c("LQ Bins", "MQ Bins", "HQ Bins")) +
+  theme_classic()+
+  theme(text = element_text(size=16), legend.position = "none", axis.title.x = element_blank())
+dev.off()
+
+## Figure 3d - box and whisker plot for contigs N50
+p <- ggplot(figure1a, aes(figure1a$Quality, log2(figure1a$N50_contigs), colour=figure1a$Quality))
+tiff(file="/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/filtered_full/Figure 3/Figure3b_contig_n50.tiff", res=300, pointsize=0.5, width=1000, height=1000)
+p + geom_boxplot() + 
+  geom_point(size = 1, shape = 20, position = position_jitterdodge()) +
+  labs(y="Contig N50 (log2)") +
+  scale_color_manual(values=c("#D1AF6F", "#CC99CC", "#33CC99"), guide=FALSE) +
+  scale_x_discrete(labels=c("LQ Bins", "MQ Bins", "HQ Bins")) +
+  theme_classic()+
+  theme(text = element_text(size=16), legend.position = "none", axis.title.x = element_blank())
+dev.off()
+```
+
+
+## Figure 3e - Plot terminal damage levels per bin
+```{r}
+## Figure 3e 
+md= read.table("/Users/marshacw/Downloads/damageprofiler_metadata_filtered_bins_soil.txt",sep="\t",header=T)
+
+# Order by damage on 5' end (CtoT damage)
+to_split= read.table("/Users/marshacw/Downloads/damageprofiler_out_filtered_bins_soil.txt",sep="\t",header=T, stringsAsFactors = F, quote="")
+to_split$metadata <- md$metadata[match(to_split$Bin,md$Bin.Id)]
+
+to_split <- to_split[to_split$metadata != "soil", ]
+
+position_5p_end <- subset(to_split,to_split$Pos=="0")
+position_5p_end_CtoT <- subset(position_5p_end,position_5p_end$Type=="CtoT")
+position_5p_end_CtoT <- subset(position_5p_end_CtoT,position_5p_end_CtoT$Label=="5p")
+position_5p_end_CtoT$quality <- md$quality[match(position_5p_end_CtoT$Bin,md$Bin.Id)]
+position_5p_end_CtoT$sample <- md$sample[match(position_5p_end_CtoT$Bin,md$Bin.Id)]
+
+position_3p_end_GtoA <- subset(position_5p_end,position_5p_end$Type=="GtoA")
+position_3p_end_GtoA <- subset(position_3p_end_GtoA,position_3p_end_GtoA$Label=="3p")
+position_3p_end_GtoA$quality <- md$quality[match(position_3p_end_GtoA$Bin,md$Bin.Id)]
+position_3p_end_GtoA$sample <- md$sample[match(position_3p_end_GtoA$Bin,md$Bin.Id)]
+
+position_5p_end_CtoT$quality = factor(position_5p_end_CtoT$quality, levels=c('MQ','HQ'))
+position_3p_end_GtoA$quality = factor(position_3p_end_GtoA$quality, levels=c('MQ','HQ'))
+
+# box and whisker plot for CtoT damage
+plot1 <- ggplot(position_5p_end_CtoT, aes(x=quality, y=damage, colour=quality)) +
+#ggplot(ra, aes(x=Pos, y=damage, group=Type, colour=Type)) + 
+  geom_boxplot() + 
+  geom_point(size = 1, shape = 20, position = position_jitterdodge()) +
+  ylim(c(0.002,0.07)) +
+  labs(y="5p CtoT damage") +
+  scale_color_manual(values=c("#CC99CC", "#33CC99"), guide=FALSE) +
+  scale_x_discrete(labels=c("MQ Bins", "HQ Bins")) +
+  theme_classic()+
+  theme(text = element_text(size=15), legend.position = "none", axis.title.x = element_blank())
+
+plot2 <- ggplot(position_3p_end_GtoA, aes(x=quality, y=damage, colour=quality)) +
+#ggplot(ra, aes(x=Pos, y=damage, group=Type, colour=Type)) + 
+  geom_boxplot() + 
+  geom_point(size = 1, shape = 20, position = position_jitterdodge()) +
+  ylim(c(0.002,0.07)) +
+  labs(y="3p GtoA damage") +
+  scale_color_manual(values=c("#CC99CC", "#33CC99"), guide=FALSE) +
+  scale_x_discrete(labels=c("MQ Bins", "HQ Bins")) +
+  theme_classic()+
+  theme(text = element_text(size=15), legend.position = "none", axis.title.x = element_blank())
+
+tiff(file="/Users/marshacw/Downloads/damage_distribution_filtered_bins_nosoil_20200105.tiff", res=300, pointsize=0.5, width=1500, height=1100)
+ggarrange(plot1, plot2)
+dev.off()
+```
+
+
+## Figure 3f-g - Plot genus and species assignment for the bins
+```{r}
+# Figure 3f - Genus assignment for 70 high-damage bins
+genus_total= read.table("/Users/marshacw/Downloads/genus_tally_filtered_bins_selected.txt",sep="\t",header=T, stringsAsFactors = F, quote="")
+
+tiff(file="/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/filtered_full/Figure 3/Figure3e_genus_selected_20200106.tiff", res=300, pointsize=0.5, width=2300, height=3000)
+ggplot(genus_total, aes(x=reorder(Var1,Freq_total), y=Freq, fill=Type))+
+  geom_bar(stat="identity") + 
+  labs(y="Number of reconstructed genomes",x="Pathway") + 
+  coord_flip() +
+#  scale_fill_gradient(low = "paleturquoise3", high = "paleturquoise4") +
+  scale_fill_manual(values = c("paleturquoise3","paleturquoise4")) +
+  theme_classic() +
+  theme(legend.position = "none", axis.title.y=element_blank(), text = element_text(size=15), legend.title = element_blank(), axis.title.x=element_text(size=22), axis.text.x=element_text(size=20)) +
+  guides(fill=guide_legend(keywidth=0.2, keyheight=0.2, default.unit="inch"))
+dev.off()
+
+
+## Figure 3g - Species assignment for 22 high-damage bins
+known_species= read.table("/Users/marshacw/Downloads/species_tally_filtered_bins_selected.txt",sep="\t",header=T, stringsAsFactors = F, quote="")
+
+tiff(file="/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/filtered_full/Figure 3/Figure3f_known_species_selected_20200106_v2.tiff", res=300, pointsize=0.5, width=1350, height=1500)
+ggplot(known_species, aes(x=reorder(Var1,Freq), y=Freq, fill=Freq)) +
+  geom_bar(stat="identity") + 
+  labs(y="Number of reconstructed genomes",x="Pathway") + 
+  scale_y_continuous(breaks=c(1,2))+
+  coord_flip() +
+  scale_fill_gradient(low = "mistyrose3", high = "mistyrose3") +
+  theme_classic() +
+  theme(legend.position = "none", axis.title.y=element_blank(), text = element_text(size=11), axis.title.x = element_text(size=11), axis.text.x=element_text(size=8))
+dev.off()
+```
+
+
+
+## Figure 5a - Heatmap for prokka gene catalog alignment combined
+```{r}
+all_samples_family <- read.delim("/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/filtered_full/prokka_alignment_20200705/gene_cat_abundance_combined_without_qinj_top_40.txt", header=TRUE, row.names=1, sep="\t")
+
+# Select only the significant ones
+sig_fam <- read.delim("/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/filtered_full/prokka_alignment_20200705/for_heatmap_row_annot_combined_without_qinj.txt", header=TRUE, sep="\t")
+all_samples_family <- all_samples_family[rownames(all_samples_family) %in% sig_fam$Gene,]
+sig_fam <- as.data.frame(sig_fam[sig_fam$Gene %in% rownames(all_samples_family) , ])
+all_samples_family <- all_samples_family[match(sig_fam$Gene, rownames(all_samples_family)),]
+all(rownames(all_samples_family) == sig_fam$Gene) # check that otu table and mapping file has same order
+
+# Metadata
+md= read.table("/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/filtered_full/prokka_alignment_20200705/for_heatmap_metadata_detail.txt",sep="\t",header=T)
+md <- md[md$SampleID %in% colnames(all_samples_family) , ]
+all_samples_family <- all_samples_family[, colnames(all_samples_family) %in% md$SampleID]
+all_samples_family <- all_samples_family[, match(md$SampleID, colnames(all_samples_family))]
+all(colnames(all_samples_family) == md$SampleID) # check that otu table and mapping file has same order
+
+md$SampleName <- factor(md$SampleName, levels = c("Paleofeces","Mexico","BritoIL_2016_Fiji","PasolliE_2018_Madagascar", "RampelliS_2015_Tanzania", "Obregon_TitoAJ_2015_Peru", "Obregon_TitoAJ_2015_USA","LiJ_2014_Denmark", "LiJ_2014_Spain" ,"HMP_USA"))
+
+# Make a new data frame for annotation_row and annotation_col
+annotationrow <- data.frame(enriched_in=sig_fam[,2])
+row.names(annotationrow) <- sig_fam[,1]
+annotationcol <- data.frame(SampleType=md[,2])
+row.names(annotationcol) <- md[,1]
+annotationcol$SampleType <- factor(annotationcol$SampleType, levels = c("Paleofeces","Mexico","BritoIL_2016_Fiji","PasolliE_2018_Madagascar", "RampelliS_2015_Tanzania", "Obregon_TitoAJ_2015_Peru", "Obregon_TitoAJ_2015_USA","LiJ_2014_Denmark", "LiJ_2014_Spain" ,"HMP_USA"))
+
+newCols <- colorRampPalette(colorRamps::primary.colors(length(unique(annotationrow$enriched_in))))
+mycolors <- newCols(length(unique(annotationrow$enriched_in)))
+names(mycolors) <- unique(annotationrow$enriched_in)
+mycolors <- list(enriched_in = mycolors)
+
+# Plot heatmap
+setEPS()
+postscript("/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/filtered_full/prokka_alignment_20200705/grouped_heatmap_combined_detailed_without_qinj_top40_20200718.eps", width=11, height=9)
+pheatmap(all_samples_family, annotation_col=annotationcol, annotation_row=annotationrow, fontsize=5, fontsize_row=6, color=brewer.pal(9, "YlOrBr"), breaks = c(0, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1), cluster_cols = F, cluster_rows = F, show_colnames=F, annotation_legend=T, scale="row")
+dev.off()
+```
+
+
+## Figure 5b - Bar plots for pathway-taxonomy (SusD-like protein P2)
+```{r}
+all_samples_family <- read.table("/Users/marshacw/Downloads/all_rep_bins_prokka_binary_matrix_without_qinj.txt", header=TRUE, row.names=1, sep="\t", stringsAsFactors = F, quote="")
+
+md= read.table("/Users/marshacw/Downloads/all_rep_bins_prokka_metadata_curated.txt",sep="\t",header=T)
+md <- md[md$representative.bins %in% colnames(all_samples_family) , ]
+all_samples_family <- all_samples_family[, colnames(all_samples_family) %in% md$representative.bins]
+all_samples_family <- all_samples_family[, match(md$representative.bins, colnames(all_samples_family))]
+all(colnames(all_samples_family) == md$representative.bins) # check that otu table and mapping file has same order
+all_samples_family <- setDT(all_samples_family, keep.rownames=TRUE)
+all_samples_family_long <- gather(all_samples_family, sampleID, relab, -rn)
+
+# Add taxonomy based on bin
+all_samples_family_long$taxonomy <- md$taxonomy[match(all_samples_family_long$sampleID, md$representative.bins)]
+all_samples_family_long$SampleType <- md$SampleType[match(all_samples_family_long$sampleID, md$representative.bins)]
+result <- all_samples_family_long[all_samples_family_long$relab==1,]
+
+samples_non_urban <- result[result$SampleType=="Non-urban",]
+samples_urban <- result[result$SampleType=="Urban",]
+samples_copro_filtered <- result[result$SampleType=="Paleofeces_filtered",]
+samples_copro_nonfiltered <- result[result$SampleType=="Paleofeces_nonfiltered",]
+
+result_non_urban <- samples_non_urban %>% group_by(rn) %>% count(taxonomy)
+result_urban <- samples_urban %>% group_by(rn) %>% count(taxonomy)
+result_copro_filtered <- samples_copro_filtered %>% group_by(rn) %>% count(taxonomy)
+result_copro_nonfiltered <- samples_copro_nonfiltered %>% group_by(rn) %>% count(taxonomy)
+
+
+make_bar_plots <- function(gene_of_interest) {
+  for (row in 1:nrow(gene_of_interest)){
+    print(row)
+    gene <- gene_of_interest[row,]
+    print(as.character(gene))
+    susd_copro_filtered <- result_copro_filtered[result_copro_filtered$rn==gene,]
+    susd_copro_nonfiltered <- result_copro_nonfiltered[result_copro_nonfiltered$rn==gene,]
+    susd_urban <- result_urban[result_urban$rn==gene,]
+    susd_non_urban <- result_non_urban[result_non_urban$rn==gene,]
+
+    g2 <- ggplot(data=susd_copro_filtered, aes(x=reorder(taxonomy,-n), y=n)) +
+      geom_bar(stat="identity")+
+      ggtitle("Paleofeces") + 
+      xlab("MAG") +
+      #ylim(0,4)+
+      theme_classic()+
+      theme(text = element_text(size=10), axis.title.y=element_blank(), axis.title.x=element_blank(), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y=element_text(size=10))
+  
+    g3 <- ggplot(data=susd_non_urban, aes(x=reorder(taxonomy,-n), y=n)) +
+      geom_bar(stat="identity")+
+      ggtitle("Non-industrial") + 
+      #ylim(0,4)+
+      theme_classic()+
+      theme(text = element_text(size=10), axis.title.y=element_blank(), axis.title.x=element_blank(), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y=element_text(size=10))
+    
+    g4 <- ggplot(data=susd_urban, aes(x=reorder(taxonomy,-n), y=n)) +
+      geom_bar(stat="identity")+
+      ggtitle("Industrial") + 
+      xlab("MAG") +
+      #ylim(0,4)+
+      theme_classic()+
+      theme(text = element_text(size=10), axis.title.y=element_blank(), axis.title.x=element_blank(), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y=element_text(size=10))
+    
+    
+    figure1 <- ggarrange(g2, g2,
+                        ncol = 2, nrow = 1)
+    
+    figure2 <- ggarrange(g3, g3,
+                        ncol = 2, nrow = 1)
+    
+    figure3 <- ggarrange(g4, g4,
+                        ncol = 2, nrow = 1)
+    
+    tiff(file=paste("/Users/marshacw/Downloads/", gene, "copro_filtered", sep=""), res=300, pointsize=0.5, width=1200, height=1400)
+    par(mar=c(5.1,6,4.1,2.1))
+    print(figure1)
+    dev.off()
+      
+    tiff(file=paste("/Users/marshacw/Downloads/", gene, "non_urban", sep=""), res=300, pointsize=0.5, width=4400, height=1400)
+    par(mar=c(5.1,6,4.1,2.1))
+    print(figure2)
+    dev.off()
+
+    tiff(file=paste("/Users/marshacw/Downloads/", gene, "urban", sep=""), res=300, pointsize=0.5, width=4400, height=1600)
+    par(mar=c(5.1,6,4.1,2.1))
+    print(figure3)
+    dev.off()
+
+  }
+}
+
+genes_of_interest <- read.table("/Users/marshacw/Downloads/MAGs_genes_of_interest_without_qinj.txt", header=TRUE, sep="\t", stringsAsFactors = F, quote="")
+genes_of_interest <- genes_of_interest %>% filter(Gene=="SusD-like protein P2")
+
+make_bar_plots(genes_of_interest)
+```
+
+
+## Figure 5c - Volcano plot for cazyme two-tailed wilcoxon results
+```{r}
+desired_cazyme_list <- read.table("/Users/marshacw/Downloads/cazyme_list_wilcoxon_twosided_without_qinj.txt",sep="\t",header=T, stringsAsFactors = F, quote="")
+
+all_cazymes_padj_logfc <- read.table("/Users/marshacw/Downloads/cazy_no_soil_wilcoxon_twosided_without_qinj.txt",sep="\t",header=T, stringsAsFactors = F, quote="", fill=TRUE)
+
+# Add a column for broad category annotation
+all_cazymes_padj_logfc$molecule <- desired_cazyme_list$molecule[match(all_cazymes_padj_logfc$ID, desired_cazyme_list$CAZYme)]
+all_cazymes_padj_logfc[is.na(all_cazymes_padj_logfc)] <- "other"
+
+
+# Volcano plot for industrial vs. non-industrial samples
+tiff(file="/Users/marshacw/Downloads/cazyme_volcano_trad_urban_wilcox_twosided_relab_cut_without_qinj.tiff", res=300, pointsize=0.5, width=3200, height=1300)
+ggplot(all_cazymes_padj_logfc) +
+  geom_point(aes(x=log2fc_trad_vs_urban, y=-log10(padj_trad_vs_urban), colour=molecule), alpha=0.5) +
+  geom_hline(yintercept=1.3, linetype="dashed", color = "red") +
+  geom_vline(xintercept=0, linetype="dashed", color = "red") +
+  ggtitle("Non-industrial vs. industrial") +
+  xlab("log2 fold change") + 
+  ylab("-log10 adjusted p-value") +
+  scale_color_manual(name="Molecule", values=c("#9e5d0d","#40cfcf","#ffb600", "darkblue", "#9119b5", "magenta", "#d7d7db", "#00BA38", "red", "#3399FF","red", "tomato3", "#c28904"),na.value="#d7d7db")+
+  theme_classic() +
+  scale_x_continuous(limits = c(-5,5)) +
+  theme(plot.title = element_text(size = rel(1.5), hjust = 0.5),
+        axis.title = element_text(size = rel(1.5)), axis.text.x = element_text(size=rel(1.2)), axis.text.y=element_text(size=rel(1.2)), legend.title=element_text(size=rel(1.5)), legend.text=element_text(size=rel(1.5)))+
+  guides(colour = guide_legend(override.aes = list(size=4)))
+dev.off()
+
+
+# Volcano plot for paleofeces vs. non-industrial samples
+tiff(file="/Users/marshacw/Downloads/cazyme_volcano_copro_trad_wilcox_twosided_relab_cut_without_qinj.tiff", res=300, pointsize=0.5, width=3000, height=1300)
+ggplot(all_cazymes_padj_logfc) +
+  geom_point(aes(x=log2fc_copro_vs_trad, y=-log10(padj_copro_vs_trad), colour=molecule), alpha=0.5) +
+  geom_hline(yintercept=1.3, linetype="dashed", color = "red") +
+  geom_vline(xintercept=0, linetype="dashed", color = "red") +
+  ggtitle("Paleofeces vs. non-industrial") +
+  xlab("log2 fold change") + 
+  ylab("-log10 adjusted p-value") +
+  scale_color_manual(name="Molecule", values=c("#9e5d0d","#40cfcf","#ffb600", "darkblue", "#9119b5", "magenta", "#d7d7db", "#00BA38", "red", "#3399FF","red", "tomato3", "#c28904"),na.value="#d7d7db")+
+  theme_classic() +
+  theme(plot.title = element_text(size = rel(1.5), hjust = 0.5),
+        axis.title = element_text(size = rel(1.5)), axis.text.x = element_text(size=rel(1.2)), axis.text.y=element_text(size=rel(1.2)))+
+  facet_zoom(ylim = c(0, 5.5), xlim=c(-5,5))
+dev.off()
+
+
+# Volcano plot for paleofeces vs. industrial samples
+tiff(file="/Users/marshacw/Downloads/cazyme_volcano_copro_urban_wilcox_twosided_relab_cut_without_qinj.tiff", res=300, pointsize=0.5, width=3000, height=1300)
+ggplot(all_cazymes_padj_logfc) +
+  geom_point(aes(x=log2fc_copro_vs_urban, y=-log10(padj_copro_vs_urban), colour=molecule), alpha=0.5) +
+  geom_hline(yintercept=1.3, linetype="dashed", color = "red") +
+  geom_vline(xintercept=0, linetype="dashed", color = "red") +
+  ggtitle("Paleofeces vs. industrial") +
+  xlab("log2 fold change") + 
+  ylab("-log10 adjusted p-value") +
+  scale_color_manual(name="Molecule", values=c("#9e5d0d","#40cfcf","#ffb600", "darkblue", "#9119b5", "magenta", "#d7d7db", "#00BA38", "red", "#3399FF","red", "tomato3", "#c28904"),na.value="#d7d7db")+
+  theme_classic() +
+  theme(plot.title = element_text(size = rel(1.5), hjust = 0.5),
+        axis.title = element_text(size = rel(1.5)), axis.text.x = element_text(size=rel(1.2)), axis.text.y=element_text(size=rel(1.2)))+
+  facet_zoom(ylim = c(0, 5.5), xlim=c(-5,5))  
 dev.off()
 ```
