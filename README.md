@@ -7,13 +7,24 @@ Loss of gut microbial diversity in modern-day industrial populations is associat
 
 ## Directories
 ### aDNA_damage
+Contains scripts to assess ancient DNA (aDNA) damage levels.
 
 ### de_novo_assembly
-### functional_analysis
-### phylogenetic_analysis
-### read_processing_and_quality_control
-### reference_based_taxonomy
-### statistics_and_figures
+Scripts to de novo assemble raw reads into contigs, bin contigs into MAGs, assess the quality and novelty of the MAGs, dereplicate MAGs, and assign taxonomy to MAGs.
 
+### functional_analysis
+Pipeline to predict genes and CAZymes and process gene catalog.
+
+### phylogenetic_analysis
+Pipeline for building phylogenetic trees.
+
+### read_processing_and_quality_control
+Codes used for processing raw reads and for quality control.
+
+### reference_based_taxonomy
+Reference-based taxonomic analysis of the metagenomes.
+
+### statistics_and_figures
+Statistical analyses and scripts used to generate figures in the paper.
 
 
