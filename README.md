@@ -7,12 +7,13 @@ Loss of gut microbial diversity in modern-day industrial populations is associat
 
 ## Directories
 ### aDNA_damage
+
 ### de_novo_assembly
 ### functional_analysis
 ### phylogenetic_analysis
 ### read_processing_and_quality_control
-#### reference_based_taxonomy
-##### statistics_and_figures
+### reference_based_taxonomy
+### statistics_and_figures
 
 
 
