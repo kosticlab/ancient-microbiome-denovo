@@ -34,6 +34,7 @@ library(lattice)
 library(ggpubr)
 library(ggforce)
 library(ggrepel)
+library(futile.matrix)
 ```
 
 
@@ -253,7 +254,7 @@ dev.off()
 ```
 
 
-## Figure 3b-d - Plot completeness, contamination, number of contigs, and contigs N50 of the bins
+## Figure 3b-d & Extended Data Figs. 7-8 - Plot completeness, contamination, number of contigs, and contigs N50 of the bins
 ```{r}
 ## Figure 3b - completeness and contamination of filtered bins with final samples 
 figure1a <- read.table("/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/filtered_full/metadata_filtered_bins.txt", sep="\t", header=TRUE,stringsAsFactors = F)
@@ -296,7 +297,7 @@ dev.off()
 ```
 
 
-## Figure 3e - Plot terminal damage levels per bin
+## Figure 3e & Extended Data Figs. 7-8 - Plot terminal damage levels per bin
 ```{r}
 ## Figure 3e 
 md= read.table("/Users/marshacw/Downloads/damageprofiler_metadata_filtered_bins_soil.txt",sep="\t",header=T)
@@ -350,7 +351,7 @@ dev.off()
 ```
 
 
-## Figure 3f-g - Plot genus and species assignment for the bins
+## Figure 3f-g & Extended Data Figs. 7-8 - Plot genus and species assignment for the bins
 ```{r}
 # Figure 3f - Genus assignment for 70 high-damage bins
 genus_total= read.table("/Users/marshacw/Downloads/genus_tally_filtered_bins_selected.txt",sep="\t",header=T, stringsAsFactors = F, quote="")
@@ -425,7 +426,7 @@ dev.off()
 ```
 
 
-## Figure 5b - Bar plots for pathway-taxonomy (SusD-like protein P2)
+## Figure 5b & Supplementary Notes - Bar plots for pathway-taxonomy
 ```{r}
 all_samples_family <- read.table("/Users/marshacw/Downloads/all_rep_bins_prokka_binary_matrix_without_qinj.txt", header=TRUE, row.names=1, sep="\t", stringsAsFactors = F, quote="")
 
@@ -581,5 +582,183 @@ ggplot(all_cazymes_padj_logfc) +
   theme(plot.title = element_text(size = rel(1.5), hjust = 0.5),
         axis.title = element_text(size = rel(1.5)), axis.text.x = element_text(size=rel(1.2)), axis.text.y=element_text(size=rel(1.2)))+
   facet_zoom(ylim = c(0, 5.5), xlim=c(-5,5))  
+dev.off()
+```
+
+
+## Extended Data Figure 6a - MetaPhlAn2 jaccard distance heatmap for subset with short reads and subset with long reads 
+```{r heatmap}
+open_file <- read.table("/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/filtered_reads/jaccard_species_filtered_long_final_samples_20200107.txt", header=TRUE)
+
+sample_info <- read.table("/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/filtered_reads/jaccard_metadata_final_samples.txt", header=TRUE, sep='\t')
+
+# Make a new data frame for annotation_col
+annotationrow <- data.frame(Type=sample_info[,2])
+row.names(annotationrow) <- sample_info[,1]
+
+annotationcol <- data.frame(Type=sample_info[,2])
+row.names(annotationcol) <- sample_info[,1]
+
+# Heatmap
+tiff(file="/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/filtered_reads/jaccard_species_filtered_long_final_samples_20200107.tiff", res=200, pointsize=0.1, width=2500, height=2000)
+pheatmap(as.matrix(open_file), fill=TRUE, fontsize=10, annotation_col=annotationcol, annotation_row=annotationrow, show_colnames=T, show_rownames = T)
+dev.off()
+```
+
+
+## Extended Data Figure 6a - Pathway jaccard distance heatmap for subset with short reads and subset with long reads 
+```{r heatmap}
+open_file <- read.table("/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/filtered_reads/jaccard_pathway_ancient_filtered_long_final_samples_20200107.csv", header=TRUE)
+
+sample_info <- read.table("/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/filtered_reads/jaccard_metadata_final_samples.txt", header=TRUE, sep='\t')
+
+# Make a new data frame for annotation_col
+annotationrow <- data.frame(Type=sample_info[,2])
+row.names(annotationrow) <- sample_info[,1]
+
+annotationcol <- data.frame(Type=sample_info[,2])
+row.names(annotationcol) <- sample_info[,1]
+
+# Heatmap
+tiff(file="/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/filtered_reads/jaccard_pathway_ancient_filtered_long_final_samples_20200107.tiff", res=200, pointsize=0.1, width=2500, height=2000)
+pheatmap(as.matrix(open_file), fill=TRUE, fontsize=10, annotation_col=annotationcol, annotation_row=annotationrow, show_colnames=T, show_rownames = T)
+dev.off()
+```
+
+
+## Supplementary Notes - Visualize number of reads aligned for metaphlan results
+```{r}
+to_plot <- read.table("/Users/marshacw/Downloads/plot_percent_reads.txt", header=TRUE, sep="\t")
+
+# Metadata
+md= read.table("/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/filtered_full/Figure 2/metadata_ancient_hmp_mexican_fiji_jaccard.txt",sep="\t",header=T)
+
+md <- md[md$SampleID %in% to_plot$SampleID , ]
+to_plot <- to_plot[to_plot$SampleID %in% md$SampleID,]
+to_plot <- to_plot[match(md$SampleID, to_plot$SampleID),]
+all(to_plot$SampleID == md$SampleID)
+
+to_plot$SampleType <- md$SampleType[match(to_plot$SampleID,md$SampleID)]
+to_plot$SampleType <- factor(to_plot$SampleType, levels = c("HMP", "Mexican", "Fijian", "Paleofeces","Soil"))
+
+# Plot
+tiff(file="/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/filtered_full/Fig_reads_aligned_metaphlan_20200526.tiff", res=300, pointsize=0.5, width=1000, height=800)
+ggplot(to_plot, aes(x=SampleType, y=percent, fill=SampleType))+
+  geom_boxplot(outlier.shape=NA, lwd=0.25) +
+  scale_fill_manual(values = c("#62a9d9", "#8860b3", "#e7d1ff", "#ff7a7a", "#E69F00"))+
+  geom_point(color="black", size = 1, shape=21, position = position_jitterdodge(), stroke=0.1, alpha=0.75)+
+  labs(y="Aligned reads (%)") +
+  theme_classic() +
+  theme(axis.title.x=element_blank(),
+        axis.ticks.x=element_blank(), strip.text.x = element_text(size = 6), axis.text.y = element_text(size = 8), axis.title.y=element_text(size=10), legend.text=element_blank(), legend.title = element_blank(), axis.line = element_line(size = 0.2), strip.background = element_blank(), axis.ticks = element_line(size=0.1), legend.position = "none")
+dev.off()
+```
+
+
+## Supplementary Notes - Bacteroidetes vs. Firmicutes terminal damage levels
+```{r}
+ra_both= read.table("/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/filtered_full/plot_damage_filtered_bacteroidetes_firmicutes_CtoT.txt",sep="\t",header=T, stringsAsFactors = F, quote="")
+
+# box and whisker plot for CtoT damage
+plot1 <- ggplot(ra_both, aes(x=phylum, y=damage_5p_CtoT, fill=phylum)) +
+  geom_boxplot(outlier.shape=NA, lwd=0.25) + 
+  geom_point(color="black", size = 2, shape = 21, position = position_jitterdodge(), stroke=0.1, alpha=0.75) +
+  labs(y="5p CtoT damage") +
+  scale_color_manual(values=c("#D1AF6F", "#CC99CC"), guide=FALSE) +
+  theme_classic()+
+  theme(text = element_text(size=16), legend.position = "none", axis.title.x = element_blank())
+
+GtoA_plot = read.table("/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/filtered_full/plot_damage_filtered_bacteroidetes_firmicutes_GtoA.txt",sep="\t",header=T, stringsAsFactors = F, quote="")
+
+plot2 <- ggplot(GtoA_plot, aes(x=phylum, y=damage_3p_GtoA, fill=phylum)) +
+  geom_boxplot(outlier.shape=NA, lwd=0.25) + 
+  geom_point(color="black", size = 2, shape = 21, position = position_jitterdodge(), stroke=0.1, alpha=0.75) +
+  labs(y="3p GtoA damage") +
+  scale_color_manual(values=c("#D1AF6F", "#CC99CC"), guide=FALSE) +
+  theme_classic()+
+  theme(text = element_text(size=16), legend.position = "none", axis.title.x = element_blank())
+
+tiff(file="/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/filtered_full/Fig_damage_filtered_bacteroidetes_firmicutes.tiff", res=300, pointsize=0.5, width=2300, height=1300)
+ggarrange(plot1, plot2)
+dev.off()
+```
+
+
+## Supplementary Notes - Boxplots for prokka gene alignment
+```{r}
+all_samples_family <- read.table("/Users/marshacw/Downloads/for_boxplot.txt",sep="\t",header=T, stringsAsFactors = F, quote="", row.names=1)
+
+md= read.table("/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/filtered_full/prokka_alignment_20200705/for_heatmap_metadata.txt",sep="\t",header=T)
+md <- md[md$SampleID %in% colnames(all_samples_family) , ]
+all_samples_family <- all_samples_family[, colnames(all_samples_family) %in% md$SampleID]
+all_samples_family <- all_samples_family[, match(md$SampleID, colnames(all_samples_family))]
+all(colnames(all_samples_family) == md$SampleID) # check that otu table and mapping file has same order
+
+md$SampleName <- factor(md$SampleName, levels = c("Paleofeces","Non-urban","Urban"))
+
+all_samples_family <- setDT(all_samples_family, keep.rownames=TRUE)
+all_samples_family_long <- gather(all_samples_family, sampleID, relab, -rn)
+all_samples_family_long$SampleType <- md$SampleName[match(all_samples_family_long$sampleID,md$SampleID)]
+
+all_samples_family_long$SampleType <- factor(all_samples_family_long$SampleType, levels = c("Paleofeces","Non-urban", "Urban"))
+
+tiff(file="/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/filtered_full/prokka_alignment_20200705/Fig_boxplot8.tiff", res=300, pointsize=0.5, width=2300, height=2500)
+ggplot(all_samples_family_long, aes(x=SampleType, y=relab, fill=SampleType))+
+  geom_boxplot(outlier.shape=NA, lwd=0.25) +
+  geom_point(color="black", size = 1.3, shape=21, position = position_jitterdodge(), stroke=0.1, alpha=0.75)+
+  labs(fill="Sample type", y="Relative abundance") +
+  scale_fill_manual(values = c("#ff7a7a", "#8860b3", "#62a9d9"))+
+  theme_classic() +
+  theme(legend.key.size = unit(0.5, "cm"), axis.title.x=element_blank(), axis.text.x=element_blank(), axis.ticks.x=element_blank(), strip.text.x = element_text(size = 7), axis.text.y = element_text(size = 6), axis.title.y=element_text(size=8), legend.text=element_text(size=8), strip.background.x = element_blank(), legend.title=element_text(size=8), axis.line = element_line(size = 0.2), axis.ticks = element_line(size=0.1)) +
+  facet_wrap(.~rn, scales="free_y", ncol=3) +
+  annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf)+
+  annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf)
+dev.off()
+```
+
+
+## Supplementary Notes - Heatmap of udg vs non-udg jaccard distance at species level (MetaPhlAn2 output)
+```{r heatmap}
+open_file <- read.table("/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/AdapterRemoval/20190610_final_samples/jaccard_udg_nonudg_metaphlan_species_20190710_renamed.csv", header=TRUE, row.names=1)
+
+sample_info <- read.table("/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/AdapterRemoval/20190610_final_samples/metadata_udg_nonudg_renamed.txt",sep="\t",header=T)
+
+# Make a new data frame for annotation_col
+annotationrow <- data.frame(SampleType=sample_info[,2])
+row.names(annotationrow) <- sample_info[,1]
+
+annotationcol <- data.frame(SampleType=sample_info[,2])
+row.names(annotationcol) <- sample_info[,1]
+
+my_colour = list(SampleType = c(non_UDG="#f75959", UDG="#34ebde"))
+
+# Heatmap
+tiff(file="/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/AdapterRemoval/20190610_final_samples/jaccard_udg_nonudg_species_20190812.tiff", res=800, pointsize=0.1, width=3800, height=3000)
+pheatmap(as.matrix(open_file), fill=TRUE, fontsize=8, annotation_col=annotationcol, annotation_row=annotationrow, annotationcolors=my_colour)
+dev.off()
+```
+
+
+## Supplementary Notes - Heatmap of udg vs non-udg jaccard distance at 0.9 or 0.5 protein level.
+```{r heatmap}
+open_file <- read.table("/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/AdapterRemoval/20190610_final_samples/jaccard_udg_nonudg_protein_0.9_20190710_renamed.csv", header=TRUE, row.names=1)
+
+sample_info <- read.table("/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/AdapterRemoval/20190610_final_samples/metadata_udg_nonudg_renamed.txt",sep="\t",header=T)
+
+# Make a new data frame for annotation_col
+annotationrow <- data.frame(SampleType=sample_info[,2])
+row.names(annotationrow) <- sample_info[,1]
+
+annotationcol <- data.frame(SampleType=sample_info[,2])
+row.names(annotationcol) <- sample_info[,1]
+
+newCols <- colorRampPalette(colorRamps::primary.colors(length(unique(annotationrow$SampleType))))
+mycolors <- newCols(length(unique(annotationrow$SampleType)))
+names(mycolors) <- unique(annotationrow$SampleType)
+mycolors <- list(SampleType = mycolors)
+
+# Heatmap
+tiff(file="/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/AdapterRemoval/20190610_final_samples/jaccard_udg_nonudg_protein_0.9_20190812.tiff", res=800, pointsize=0.1, width=3800, height=3000)
+pheatmap(as.matrix(open_file), fill=TRUE, fontsize=8, annotation_col=annotationcol, annotation_row=annotationrow)
 dev.off()
 ```
