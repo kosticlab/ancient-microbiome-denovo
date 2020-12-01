@@ -35,6 +35,7 @@ library(ggpubr)
 library(ggforce)
 library(ggrepel)
 library(futile.matrix)
+library(Rtsne)
 ```
 
 
@@ -717,7 +718,7 @@ dev.off()
 ```
 
 
-## Supplementary Notes - Heatmap of udg vs non-udg jaccard distance at species level (MetaPhlAn2 output)
+## Supplementary Notes - Heatmap of UDG vs non-UDG jaccard distance at species level (MetaPhlAn2 output)
 ```{r heatmap}
 open_file <- read.table("/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/AdapterRemoval/20190610_final_samples/jaccard_udg_nonudg_metaphlan_species_20190710_renamed.csv", header=TRUE, row.names=1)
 
@@ -739,7 +740,7 @@ dev.off()
 ```
 
 
-## Supplementary Notes - Heatmap of udg vs non-udg jaccard distance at 0.9 or 0.5 protein level.
+## Supplementary Notes - Heatmap of UDG vs non-UDG jaccard distance at 0.9 or 0.5 protein level.
 ```{r heatmap}
 open_file <- read.table("/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/AdapterRemoval/20190610_final_samples/jaccard_udg_nonudg_protein_0.9_20190710_renamed.csv", header=TRUE, row.names=1)
 
@@ -760,5 +761,46 @@ mycolors <- list(SampleType = mycolors)
 # Heatmap
 tiff(file="/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/AdapterRemoval/20190610_final_samples/jaccard_udg_nonudg_protein_0.9_20190812.tiff", res=800, pointsize=0.1, width=3800, height=3000)
 pheatmap(as.matrix(open_file), fill=TRUE, fontsize=8, annotation_col=annotationcol, annotation_row=annotationrow)
+dev.off()
+```
+
+
+## Supplementary Notes - MetaPhlAn2 tSNE for UDG vs. non-UDG samples
+```{r}
+ra= read_metaphlan_table(filename="/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/AdapterRemoval/20190610_final_samples/udg_nonudg_metaphlan_abundance_table_20190710_renamed.txt", kingdom="k__Bacteria", normalize=T, lvl=7)
+colnames(ra) <- sapply(strsplit(colnames(ra), split="s__"), function(x) x[2])
+
+#delete columns with all rows equal zero
+ra <- ra[, colSums(ra != 0) > 0]
+
+md= read.table("/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/AdapterRemoval/20190610_final_samples/metadata_udg_nonudg_renamed.txt",sep="\t",header=T)
+md <- md[ md$SampleID %in% rownames(ra) , ]
+ra <- ra[ rownames(ra) %in% md$SampleID , ]
+ra <- ra[match(md$SampleID, rownames(ra)),]
+all(rownames(ra) == md$SampleID) # check that otu table and mapping file has same order
+
+d = jaccard(ra)
+distances <- as.matrix(d)
+
+min_cost <- 100
+costs <- c()
+for (j in 1:10) {
+  tsne_res <- Rtsne(distances, perplexity = 4, verbose = T, check_duplicates = FALSE)
+  if (tsne_res$itercosts[length(tsne_res$itercosts)] < min_cost) {
+    tsne_res_final <- tsne_res
+    min_cost <- tsne_res$itercosts[length(tsne_res$itercosts)]
+  }
+  costs <- c(costs, tsne_res$itercosts[length(tsne_res$itercosts)])
+}
+
+md <- md[md$SampleID %in% rownames(distances), ]
+all(rownames(distances) %in% md$SampleID)
+md$tsne1[match(rownames(distances), md$SampleID)] <- tsne_res_final$Y[,1]
+md$tsne2[match(rownames(distances), md$SampleID)] <- tsne_res_final$Y[,2]
+
+tiff(file="/Users/marshacw/Documents/Kostic Lab/Ancient Microbiome/AdapterRemoval/20190610_final_samples/metaphlan_udg_nonudg_tSNE_perplexity4_20190811.tiff", res=100, pointsize=3, width=1500, height=1000)
+ggplot(data=md, aes(x=tsne1, y=tsne2, color=SampleType)) + geom_point(size=5) + xlab("SNE1") + ylab("SNE2") + scale_x_continuous(breaks=c()) + scale_y_continuous(breaks=c()) + theme_bw() + coord_equal() + labs(color="Sample type") +
+  geom_text(aes(label=SampleID), hjust=0.6, vjust=1.5, size=8) + 
+  theme(text=element_text(size=28),axis.title.x = element_text(size=28), axis.title.y=element_text(size=28), legend.text=element_text(size=26), legend.title = element_text(size=26), legend.key = element_rect(size = 12), legend.key.size = unit(8, 'lines')) 
 dev.off()
 ```
