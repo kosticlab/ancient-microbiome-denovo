@@ -58,7 +58,7 @@ bam_index_filename=${bam_filename%.*}'.bai'
 ./samtools-1.9/samtools 'index' -b ${bam_filename} ${bam_index_filename}
 
 # calculate relative abundances for each gene per sample
-# normalizing: divide by total length of genes and number of genes that align to that read.
+# normalizing: divide by total length of genes and number of reads aligned to gene catalog per sample.
 for filename in ./*bam; do
 
 	name=${filename%.catalog.sorted.bam}
