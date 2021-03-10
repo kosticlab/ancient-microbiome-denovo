@@ -10,7 +10,7 @@ kraken90_dir <- "kraken09"
 #File containing the ids of all parasites in the database
 parasite_ids_file <- "parasite_ids.tsv"
 #Samples to extract and visualize
-sample_ids <- c("AZ107", "AZ108", "AZ110A", "UT30.3", "UT43.2", "Zape1", "Zape2", "Zape3", "1026.1.4", "1043.3.1", "3567.1.1")
+sample_ids <- c("AW107", "AW108", "AW110A", "UT30.3", "UT43.2", "Zape1", "Zape2", "Zape3", "1026.1.4", "1043.3.1", "3567.1.1")
 
 
 
