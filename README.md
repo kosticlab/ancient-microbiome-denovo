@@ -15,6 +15,9 @@ Scripts to de novo assemble raw reads into contigs, bin contigs into MAGs, asses
 ### functional_analysis
 Pipeline to predict genes and CAZymes and process gene catalog.
 
+### Msmithii_molecular_clocking
+Codes used to perform molecular clocking for Methanobrevibacter smithii
+
 ### parasite_analysis
 Scripts to analyze and visualize parasites identified in the samples.
 
